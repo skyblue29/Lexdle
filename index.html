@@ -140,6 +140,36 @@
         <li>Overall tier and probability come from a simulation of millions of random rolls under this same formula.</li>
       </ul>
     </section>
+    <section id="manual-check" class="block" aria-labelledby="manual-check-title">
+  <h2 id="manual-check-title" class="section-title">Manual score check</h2>
+
+  <div class="manual-entry card">
+    <label for="manual-letters" class="label">Enter 7 English letters</label>
+
+    <div class="manual-row">
+      <input
+        id="manual-letters"
+        type="text"
+        maxlength="7"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Example: STARING"
+        aria-describedby="manual-status"
+      >
+      <button id="manual-score-button" class="roll-button" type="button">CHECK</button>
+    </div>
+
+    <p id="manual-status" class="status" role="status" aria-live="polite">
+      Enter exactly 7 English letters.
+    </p>
+
+    <div id="manual-result" class="manual-result" hidden>
+      <span class="label">Total LEP</span>
+      <strong id="manual-lep" class="big-number">0</strong>
+      <span id="manual-tier" class="chip chip-lg" data-tier="Common">Common</span>
+    </div>
+  </div>
+</section>
   </main>
 </div>
 
