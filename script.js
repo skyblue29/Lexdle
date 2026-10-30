@@ -481,6 +481,7 @@ function calculateLEP(letters, patterns, words) {
     wordPoints,
     total: letterRarity.total + patternRarity.total + wordPoints,
     patternDetail: patternRarity.detail,
+    letterDetail: letterRarity.detail,
   };
 }
 
@@ -520,6 +521,7 @@ function analyzeLetters(letters) {
   return {
     letters: letters.slice(),
     str: letters.join(''),
+    letterDetail: lep.letterDetail,
     patterns: sortPatterns(lep.patternDetail),
     words,
     letterPoints: lep.letterPoints,
@@ -598,6 +600,10 @@ function clearSavedData() {
 }
 
 /* ------------------------------- DISPLAY --------------------------------- */
+const REDUCED_MOTION = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NOTABLE_PATTERN_TIERS = ['Epic', 'Legendary', 'Mythical', 'Divine', 'Secret'];
+const RARE_LETTER_POINTS = 28;   // letters worth at least this many points get a gold tile
+
 function formatOdds(p) {
   if (p === null || p === undefined) return 'n/a';
   if (p >= 0.995) return 'almost every roll';
@@ -611,39 +617,155 @@ function el(tag, text, attrs) {
   if (attrs) Object.keys(attrs).forEach((k) => node.setAttribute(k, attrs[k]));
   return node;
 }
+function chip(tier, size) {
+  const c = el('span', tier, { 'data-tier': tier });
+  c.className = 'chip' + (size ? ' chip-' + size : '');
+  return c;
+}
 function fillTable(tbody, rows) {
   tbody.textContent = '';
   rows.forEach((cells) => {
     const tr = document.createElement('tr');
-    cells.forEach((c) => tr.appendChild(el('td', c)));
+    cells.forEach((c) => {
+      const td = document.createElement('td');
+      if (c instanceof Node) td.appendChild(c); else td.textContent = String(c);
+      tr.appendChild(td);
+    });
     tbody.appendChild(tr);
   });
 }
 function byId(id) { return document.getElementById(id); }
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+// Count a number up with an ease-out curve.
+function animateNumber(node, to, duration) {
+  if (REDUCED_MOTION || to === 0) { node.textContent = to.toLocaleString('en-US'); return; }
+  const start = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    node.textContent = Math.round(to * eased).toLocaleString('en-US');
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---- letter tiles ---- */
+function createTiles() {
+  const list = byId('letters');
+  list.textContent = '';
+  for (let i = 0; i < ROLL_LENGTH; i++) {
+    const tile = el('li');
+    tile.className = 'tile';
+    tile.appendChild(el('span', '?', { 'class': 'tile-face' }));
+    tile.appendChild(el('small', '', { 'class': 'tile-points' }));
+    list.appendChild(tile);
+  }
+}
+function setTile(tile, letter, points) {
+  tile.querySelector('.tile-face').textContent = letter;
+  tile.querySelector('.tile-points').textContent = points !== undefined ? '+' + points : '';
+  if (points >= RARE_LETTER_POINTS) tile.setAttribute('data-rare', 'true'); else tile.removeAttribute('data-rare');
+}
+// Slot-machine roll: every tile cycles random letters, then locks left to right.
+function animateLetters(letters, detail) {
+  const tiles = Array.from(byId('letters').children);
+  tiles.forEach((tile) => {
+    tile.classList.remove('locked');
+    tile.classList.add('spinning');
+    tile.removeAttribute('data-rare');
+    tile.querySelector('.tile-points').textContent = '';
+  });
+  return new Promise((resolve) => {
+    const spinner = setInterval(() => {
+      tiles.forEach((tile) => {
+        if (tile.classList.contains('spinning')) tile.querySelector('.tile-face').textContent = ALPHABET[randomInt(26)];
+      });
+    }, 65);
+    tiles.forEach((tile, i) => {
+      setTimeout(() => {
+        tile.classList.remove('spinning');
+        setTile(tile, letters[i], detail[i].points);
+        void tile.offsetWidth; // restart the lock animation
+        tile.classList.add('locked');
+        if (i === tiles.length - 1) { clearInterval(spinner); setTimeout(resolve, REDUCED_MOTION ? 0 : 450); }
+      }, REDUCED_MOTION ? 0 : 750 + i * 260);
+    });
+  });
+}
+
+/* ---- results ---- */
+function patternCard(p, index) {
+  const li = el('li');
+  li.className = 'pattern-card' + (NOTABLE_PATTERN_TIERS.includes(p.tier) ? ' is-notable' : '') + (p.isCounted ? '' : ' is-overlap');
+  li.setAttribute('data-tier', p.tier);
+  li.style.setProperty('--delay', Math.min(index * 80, 1800) + 'ms');
+  const top = el('div'); top.className = 'pattern-top';
+  top.appendChild(chip(p.tier));
+  top.appendChild(el('span', p.points + ' pts', { 'class': 'pattern-points' }));
+  li.appendChild(top);
+  li.appendChild(el('h4', p.name, { 'class': 'pattern-name' }));
+  li.appendChild(el('p', p.description, { 'class': 'pattern-desc' }));
+  const foot = el('div'); foot.className = 'pattern-foot';
+  foot.appendChild(el('span', p.id, { 'class': 'pattern-id' }));
+  foot.appendChild(el('span', p.isCounted ? '+' + p.counted + ' LEP' : 'overlap, not counted', { 'class': 'pattern-counted' }));
+  li.appendChild(foot);
+  return li;
+}
+function wordRow(w, index) {
+  const tr = document.createElement('tr');
+  tr.className = 'word-row' + (w.usesAllSeven ? ' is-full' : '');
+  tr.style.setProperty('--delay', Math.min(index * 35, 1400) + 'ms');
+  const cells = [
+    el('strong', w.word, { 'class': 'word-text' }), w.length, chip(w.tier), '+' + w.bonus,
+    w.usesAllSeven ? el('span', '7 / 7', { 'class': 'badge-all' }) : '-',
+    el('span', w.definition || '(no definition available)', { 'class': w.definition ? '' : 'muted' }),
+  ];
+  cells.forEach((c) => {
+    const td = document.createElement('td');
+    if (c instanceof Node) td.appendChild(c); else td.textContent = String(c);
+    tr.appendChild(td);
+  });
+  return tr;
+}
 
 function displayResults(result) {
-  byId('results').hidden = false;
-  const letterList = byId('letters');
-  letterList.textContent = '';
-  result.letters.forEach((c) => letterList.appendChild(el('li', c)));
+  const results = byId('results');
+  results.hidden = false;
+  results.classList.remove('is-visible');
 
-  byId('out-lep').textContent = result.lep.toLocaleString('en-US');
-  byId('out-tier').textContent = result.tier;
+  const tiles = Array.from(byId('letters').children);
+  result.letters.forEach((c, i) => setTile(tiles[i], c, result.letterDetail[i].points));
+
+  byId('stage').setAttribute('data-tier', result.tier);
+  results.setAttribute('data-tier', result.tier);
+  animateNumber(byId('out-lep'), result.lep, 1100);
+  const tierNode = byId('out-tier');
+  tierNode.textContent = result.tier;
+  tierNode.setAttribute('data-tier', result.tier);
   byId('out-letter-points').textContent = result.letterPoints.toLocaleString('en-US');
   byId('out-pattern-points').textContent = result.patternPoints.toLocaleString('en-US');
   byId('out-word-points').textContent = result.wordPoints.toLocaleString('en-US');
   byId('out-probability').textContent = formatOdds(result.probability);
+  const total = Math.max(1, result.letterPoints + result.patternPoints + result.wordPoints);
+  byId('seg-letters').style.setProperty('--w', (result.letterPoints / total * 100).toFixed(2));
+  byId('seg-patterns').style.setProperty('--w', (result.patternPoints / total * 100).toFixed(2));
+  byId('seg-words').style.setProperty('--w', (result.wordPoints / total * 100).toFixed(2));
 
-  byId('pattern-count').textContent = result.patterns.length + ' detected, ' + result.patterns.filter((p) => p.isCounted).length + ' counted toward LEP';
-  fillTable(byId('pattern-rows'), result.patterns.map((p) => [
-    p.id, p.name, p.description, p.tier, p.points, p.isCounted ? '+' + p.counted : 'overlap (not counted)',
-  ]));
+  const counted = result.patterns.filter((p) => p.isCounted).length;
+  byId('pattern-count').textContent = result.patterns.length + ' detected, ' + counted + ' counted toward LEP';
+  const list = byId('pattern-list');
+  list.textContent = '';
+  result.patterns.forEach((p, i) => list.appendChild(patternCard(p, i)));
 
   const words = result.words;
   byId('word-count').textContent = words.length + ' valid English word' + (words.length === 1 ? '' : 's') + ' found (' + words.filter((w) => w.usesAllSeven).length + ' using all 7 letters)';
-  fillTable(byId('word-rows'), words.map((w) => [
-    w.word, w.length, w.tier, '+' + w.bonus, w.usesAllSeven ? 'Yes' : 'No', w.definition || '(no definition available)',
-  ]));
+  const body = byId('word-rows');
+  body.textContent = '';
+  words.forEach((w, i) => body.appendChild(wordRow(w, i)));
+
+  void results.offsetWidth; // restart CSS transitions and animations
+  results.classList.add('is-visible');
 }
 
 function renderStatistics(stats) {
@@ -654,32 +776,49 @@ function renderStatistics(stats) {
   byId('stat-words').textContent = stats.totalWords.toLocaleString('en-US');
   byId('stat-unique').textContent = stats.uniqueWords.length.toLocaleString('en-US');
   ['Legendary', 'Mythical', 'Divine', 'Secret'].forEach((t) => { byId('stat-' + t.toLowerCase()).textContent = stats.tierCounts[t] || 0; });
-  fillTable(byId('tier-rows'), OVERALL_TIERS.map((t) => [t, stats.tierCounts[t] || 0]));
+  fillTable(byId('tier-rows'), OVERALL_TIERS.map((t) => [chip(t), stats.tierCounts[t] || 0]));
 }
 function renderHistory(history) {
   const shown = history.slice(0, HISTORY_DISPLAY);
   byId('history-empty').hidden = shown.length > 0;
   byId('history-table').hidden = shown.length === 0;
   fillTable(byId('history-rows'), shown.map((h) => [
-    h.n + 1, new Date(h.time).toLocaleString(), h.letters, h.lep.toLocaleString('en-US'), h.tier, formatOdds(h.probability), h.words, h.bestWord || '-', h.patterns,
+    h.n + 1, new Date(h.time).toLocaleString(), el('strong', h.letters, { 'class': 'word-text' }), h.lep.toLocaleString('en-US'),
+    chip(h.tier), formatOdds(h.probability), h.words, h.bestWord || '-', h.patterns,
   ]));
 }
 
 /* --------------------------------- UI ------------------------------------ */
-let lastResult = null;
-function rollOnce() {
+let rolling = false;
+async function rollOnce() {
+  if (rolling) return;
+  rolling = true;
+  const button = byId('roll-button');
+  button.disabled = true;
+  button.textContent = 'ROLLING';
+  byId('stage').removeAttribute('data-tier');
+  byId('stage').classList.add('is-rolling');
+  byId('results').classList.remove('is-visible');
+  byId('status').textContent = 'Rolling...';
+
   const letters = generateLetters();
   const result = analyzeLetters(letters);
-  lastResult = result;
-  displayResults(result);
+  await animateLetters(result.letters, result.letterDetail);
+
   // saveHistory numbers the entry from the roll count before this roll, so it must run first.
   const history = saveHistory(result);
   const stats = updateStatistics(result);
+  byId('stage').classList.remove('is-rolling');
+  displayResults(result);
   renderStatistics(stats);
   renderHistory(history);
   byId('status').textContent = 'Rolled ' + result.str + ': ' + result.lep.toLocaleString('en-US') + ' LEP (' + result.tier + ').';
+  button.disabled = false;
+  button.textContent = 'ROLL AGAIN';
+  rolling = false;
 }
 function initUI() {
+  createTiles();
   byId('roll-button').addEventListener('click', rollOnce);
   byId('clear-button').addEventListener('click', () => {
     if (window.confirm('Delete all saved history and statistics?')) {
@@ -689,9 +828,9 @@ function initUI() {
       byId('status').textContent = 'History and statistics cleared.';
     }
   });
-  byId('dictionary-info').textContent = WORDS.size.toLocaleString('en-US') + ' words (3-7 letters)';
+  byId('dictionary-info').textContent = WORDS.size.toLocaleString('en-US') + ' words';
   byId('pattern-total').textContent = PATTERN_DEFS.length;
-  fillTable(byId('catalog-rows'), PATTERN_DEFS.map((d) => [d.id, d.name, d.description, d.tier, d.points]));
+  fillTable(byId('catalog-rows'), PATTERN_DEFS.map((d) => [d.id, d.name, d.description, chip(d.tier), d.points]));
   renderStatistics(loadStats());
   renderHistory(loadHistory());
 }
