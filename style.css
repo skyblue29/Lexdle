@@ -419,6 +419,53 @@ main { display: grid; gap: 40px; }
 
 .rules { padding: 20px 24px 20px 40px; display: grid; gap: 10px; color: #c5c9db; font-size: 0.93rem; list-style: disc; }
 .rules li::marker { color: var(--accent); }
+.manual-entry {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.manual-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+#manual-letters {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#manual-letters:focus {
+  outline: 2px solid rgba(139,124,255,0.8);
+  outline-offset: 2px;
+}
+
+.manual-result {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+@media (max-width: 760px) {
+  .manual-row {
+    flex-direction: column;
+  }
+
+  #manual-letters,
+  #manual-score-button {
+    width: 100%;
+  }
+}
 
 /* ------------------------------ Responsive ------------------------------- */
 @media (max-width: 760px) {
