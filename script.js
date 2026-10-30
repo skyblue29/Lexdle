@@ -834,6 +834,73 @@ function initUI() {
   renderStatistics(loadStats());
   renderHistory(loadHistory());
 }
+const manualInput = document.getElementById('manual-letters');
+const manualScoreButton = document.getElementById('manual-score-button');
+const manualStatus = document.getElementById('manual-status');
+const manualResult = document.getElementById('manual-result');
+const manualLep = document.getElementById('manual-lep');
+const manualTier = document.getElementById('manual-tier');
+
+function normalizeManualLetters(value) {
+  return value.replace(/[^a-z]/gi, '').slice(0, 7).toUpperCase();
+}
+
+function validateManualLetters(value) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return { valid: false, message: 'Please enter exactly 7 English letters.' };
+  }
+
+  if (!/^[A-Za-z]+$/.test(trimmed)) {
+    return { valid: false, message: 'Please enter only English letters.' };
+  }
+
+  if (trimmed.length !== 7) {
+    return { valid: false, message: 'Please enter exactly 7 English letters.' };
+  }
+
+  return { valid: true, letters: trimmed.toUpperCase() };
+}
+
+manualInput.addEventListener('input', () => {
+  manualInput.value = normalizeManualLetters(manualInput.value);
+});
+
+manualInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    manualScoreButton.click();
+  }
+});
+
+manualScoreButton.addEventListener('click', () => {
+  const validation = validateManualLetters(manualInput.value);
+
+  if (!validation.valid) {
+    manualResult.hidden = true;
+    manualStatus.textContent = validation.message;
+    manualInput.focus();
+    return;
+  }
+
+  const letters = validation.letters;
+
+  // Replace this with your existing score function if the function name is different.
+  // Example:
+  // const result = evaluateRoll(letters);
+  // const result = scoreLetters(letters);
+  // const result = computeRoll(letters);
+
+  const result = evaluateRoll(letters); // <- use your existing game calculator here
+
+  manualLep.textContent = String(result.lep ?? 0);
+  manualTier.textContent = result.tier ?? 'Common';
+  manualTier.dataset.tier = result.tier ?? 'Common';
+
+  manualResult.hidden = false;
+  manualStatus.textContent = `Score for "${letters}" is ready.`;
+});
 
 /* ------------------------------ BOOTSTRAP -------------------------------- */
 const api = {
