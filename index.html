@@ -3,118 +3,145 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>Lexdle</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>Lexdle</h1>
-  <p>A letter RNG game. Each roll generates 7 random letters, finds every real English word you can build from them, detects letter patterns, and scores the roll in Letter Entropy Points (LEP).</p>
-  <p>Dictionary: <span id="dictionary-info">loading</span>. Patterns: <span id="pattern-total">0</span>.</p>
-</header>
+<div class="bg-glow" aria-hidden="true"></div>
 
-<noscript><p>Lexdle needs JavaScript to run.</p></noscript>
+<div class="shell">
+  <header class="site-header">
+    <h1 class="logo">LEX<span>DLE</span></h1>
+    <p class="tagline">Roll seven letters. Find the words. Chase the rarest patterns.</p>
+    <p class="meta">
+      <span class="pill"><b id="dictionary-info">loading</b></span>
+      <span class="pill"><b id="pattern-total">0</b> patterns</span>
+    </p>
+  </header>
 
-<main>
-  <section id="roll-section">
-    <h2>Roll</h2>
-    <button id="roll-button" type="button">ROLL</button>
-    <p id="status" role="status" aria-live="polite"></p>
-  </section>
+  <noscript><p>Lexdle needs JavaScript to run.</p></noscript>
 
-  <section id="results" hidden>
-    <h2>Result</h2>
-    <h3>Generated letters</h3>
-    <ol id="letters" aria-label="Generated letters"></ol>
-
-    <h3>Score</h3>
-    <table id="score-table">
-      <tbody>
-        <tr><th scope="row">Total LEP</th><td id="out-lep"></td></tr>
-        <tr><th scope="row">Overall rarity tier</th><td id="out-tier"></td></tr>
-        <tr><th scope="row">Letter rarity points</th><td id="out-letter-points"></td></tr>
-        <tr><th scope="row">Pattern bonus points</th><td id="out-pattern-points"></td></tr>
-        <tr><th scope="row">Word bonus points</th><td id="out-word-points"></td></tr>
-        <tr><th scope="row">Estimated probability (a roll scoring at least this LEP)</th><td id="out-probability"></td></tr>
-      </tbody>
-    </table>
-
-    <section id="patterns-section">
-      <h3>Detected patterns</h3>
-      <p id="pattern-count"></p>
-      <table>
-        <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Rarity</th><th>Points</th><th>Counted</th></tr></thead>
-        <tbody id="pattern-rows"></tbody>
-      </table>
+  <main>
+    <section id="stage" class="stage card" aria-labelledby="roll-title">
+      <h2 id="roll-title" class="visually-hidden">Roll</h2>
+      <ol id="letters" class="tiles" aria-label="Generated letters"></ol>
+      <button id="roll-button" class="roll-button" type="button">ROLL</button>
+      <p id="status" class="status" role="status" aria-live="polite">Press ROLL to generate seven letters.</p>
     </section>
 
-    <section id="words-section">
-      <h3>Word discoveries</h3>
-      <p id="word-count"></p>
-      <table>
-        <thead><tr><th>Word</th><th>Length</th><th>Rarity</th><th>Bonus</th><th>Uses all 7 letters</th><th>Definition</th></tr></thead>
-        <tbody id="word-rows"></tbody>
-      </table>
+    <section id="results" class="results" hidden aria-labelledby="result-title">
+      <h2 id="result-title" class="section-title">Result</h2>
+
+      <div class="score-grid">
+        <div class="score-main card">
+          <span class="label">Total LEP</span>
+          <strong id="out-lep" class="big-number">0</strong>
+          <span id="out-tier" class="chip chip-lg" data-tier="Common">Common</span>
+          <div class="split-bar" aria-hidden="true">
+            <span id="seg-letters" class="seg seg-letters"></span>
+            <span id="seg-patterns" class="seg seg-patterns"></span>
+            <span id="seg-words" class="seg seg-words"></span>
+          </div>
+          <p class="legend" aria-hidden="true">
+            <span class="dot dot-letters"></span>Letters
+            <span class="dot dot-patterns"></span>Patterns
+            <span class="dot dot-words"></span>Words
+          </p>
+        </div>
+        <div class="score-item card"><span class="label">Letter rarity points</span><strong id="out-letter-points">0</strong></div>
+        <div class="score-item card"><span class="label">Pattern bonus points</span><strong id="out-pattern-points">0</strong></div>
+        <div class="score-item card"><span class="label">Word bonus points</span><strong id="out-word-points">0</strong></div>
+        <div class="score-item score-wide card"><span class="label">Estimated probability (a roll scoring at least this LEP)</span><strong id="out-probability"></strong></div>
+      </div>
+
+      <section id="patterns-section" class="block" aria-labelledby="patterns-title">
+        <div class="block-head">
+          <h3 id="patterns-title" class="block-title">Detected patterns</h3>
+          <p id="pattern-count" class="block-sub"></p>
+        </div>
+        <ul id="pattern-list" class="pattern-grid"></ul>
+      </section>
+
+      <section id="words-section" class="block" aria-labelledby="words-title">
+        <div class="block-head">
+          <h3 id="words-title" class="block-title">Word discoveries</h3>
+          <p id="word-count" class="block-sub"></p>
+        </div>
+        <div class="table-wrap card">
+          <table class="data-table words-table">
+            <thead><tr><th>Word</th><th>Length</th><th>Rarity</th><th>Bonus</th><th>All 7 letters</th><th>Definition</th></tr></thead>
+            <tbody id="word-rows"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
-  </section>
 
-  <section id="stats-section">
-    <h2>Statistics</h2>
-    <table>
-      <tbody>
-        <tr><th scope="row">Total rolls</th><td id="stat-rolls"></td></tr>
-        <tr><th scope="row">Highest LEP</th><td id="stat-highest"></td></tr>
-        <tr><th scope="row">Rarest result</th><td id="stat-rarest"></td></tr>
-        <tr><th scope="row">Longest word discovered</th><td id="stat-longest"></td></tr>
-        <tr><th scope="row">Total words discovered</th><td id="stat-words"></td></tr>
-        <tr><th scope="row">Unique words discovered</th><td id="stat-unique"></td></tr>
-        <tr><th scope="row">Legendary results</th><td id="stat-legendary"></td></tr>
-        <tr><th scope="row">Mythical results</th><td id="stat-mythical"></td></tr>
-        <tr><th scope="row">Divine results</th><td id="stat-divine"></td></tr>
-        <tr><th scope="row">Secret results</th><td id="stat-secret"></td></tr>
-      </tbody>
-    </table>
-    <details>
-      <summary>Results by tier</summary>
-      <table>
-        <thead><tr><th>Tier</th><th>Count</th></tr></thead>
-        <tbody id="tier-rows"></tbody>
-      </table>
-    </details>
-  </section>
+    <section id="stats-section" class="block" aria-labelledby="stats-title">
+      <h2 id="stats-title" class="section-title">Statistics</h2>
+      <dl class="stats-grid">
+        <div class="stat card"><dt>Total rolls</dt><dd id="stat-rolls"></dd></div>
+        <div class="stat card"><dt>Highest LEP</dt><dd id="stat-highest"></dd></div>
+        <div class="stat card stat-wide"><dt>Rarest result</dt><dd id="stat-rarest"></dd></div>
+        <div class="stat card stat-wide"><dt>Longest word discovered</dt><dd id="stat-longest"></dd></div>
+        <div class="stat card"><dt>Total words discovered</dt><dd id="stat-words"></dd></div>
+        <div class="stat card"><dt>Unique words discovered</dt><dd id="stat-unique"></dd></div>
+        <div class="stat card" data-tier="Legendary"><dt>Legendary results</dt><dd id="stat-legendary"></dd></div>
+        <div class="stat card" data-tier="Mythical"><dt>Mythical results</dt><dd id="stat-mythical"></dd></div>
+        <div class="stat card" data-tier="Divine"><dt>Divine results</dt><dd id="stat-divine"></dd></div>
+        <div class="stat card" data-tier="Secret"><dt>Secret results</dt><dd id="stat-secret"></dd></div>
+      </dl>
+      <details class="card details">
+        <summary>Results by tier</summary>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Tier</th><th>Count</th></tr></thead>
+            <tbody id="tier-rows"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
 
-  <section id="history-section">
-    <h2>Roll history</h2>
-    <p id="history-empty">No rolls yet.</p>
-    <table id="history-table" hidden>
-      <thead><tr><th>#</th><th>Time</th><th>Letters</th><th>LEP</th><th>Tier</th><th>Probability</th><th>Words</th><th>Best word</th><th>Patterns</th></tr></thead>
-      <tbody id="history-rows"></tbody>
-    </table>
-    <p><button id="clear-button" type="button">Clear history and statistics</button></p>
-  </section>
+    <section id="history-section" class="block" aria-labelledby="history-title">
+      <div class="block-head">
+        <h2 id="history-title" class="section-title">Roll history</h2>
+        <button id="clear-button" class="ghost-button" type="button">Clear history and statistics</button>
+      </div>
+      <p id="history-empty" class="empty">No rolls yet.</p>
+      <div class="table-wrap card">
+        <table id="history-table" class="data-table" hidden>
+          <thead><tr><th>#</th><th>Time</th><th>Letters</th><th>LEP</th><th>Tier</th><th>Probability</th><th>Words</th><th>Best word</th><th>Patterns</th></tr></thead>
+          <tbody id="history-rows"></tbody>
+        </table>
+      </div>
+    </section>
 
-  <section id="catalog-section">
-    <h2>Pattern catalog</h2>
-    <details>
-      <summary>All patterns the engine can detect</summary>
-      <table>
-        <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Rarity</th><th>Points</th></tr></thead>
-        <tbody id="catalog-rows"></tbody>
-      </table>
-    </details>
-  </section>
+    <section id="catalog-section" class="block" aria-labelledby="catalog-title">
+      <h2 id="catalog-title" class="section-title">Pattern catalog</h2>
+      <details class="card details">
+        <summary>All patterns the engine can detect</summary>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Rarity</th><th>Points</th></tr></thead>
+            <tbody id="catalog-rows"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
 
-  <section id="rules-section">
-    <h2>How scoring works</h2>
-    <ul>
-      <li>LEP = letter rarity points + pattern points + word bonus points.</li>
-      <li>Letter rarity: each letter earns 4 x -log2(its English frequency) points; repeated copies of a letter earn half.</li>
-      <li>Patterns: points come from each pattern's simulated probability. Within one overlap group only the best match counts, and surviving groups are weighted 1, 0.85, 0.85^2, ... from highest to lowest.</li>
-      <li>Words: bonus = length base (3:3, 4:8, 5:20, 6:50, 7:140) x rarity multiplier (Common 1 to Mythical 12). A 7-letter word is then multiplied by 1.5 and gains +100. Words are sorted best first and weighted 1, 0.85, 0.85^2, ...</li>
-      <li>Word rarity comes from real word frequency rank (OpenSubtitles); valid dictionary words missing from the frequency list are Mythical.</li>
-      <li>Overall tier and probability come from a simulation of millions of random rolls under this same formula.</li>
-    </ul>
-  </section>
-</main>
+    <section id="rules-section" class="block" aria-labelledby="rules-title">
+      <h2 id="rules-title" class="section-title">How scoring works</h2>
+      <ul class="rules card">
+        <li>LEP = letter rarity points + pattern points + word bonus points.</li>
+        <li>Letter rarity: each letter earns 4 x -log2(its English frequency) points; repeated copies of a letter earn half.</li>
+        <li>Patterns: points come from each pattern's simulated probability. Within one overlap group only the best match counts, and surviving groups are weighted 1, 0.85, 0.85^2, ... from highest to lowest.</li>
+        <li>Words: bonus = length base (3:3, 4:8, 5:20, 6:50, 7:140) x rarity multiplier (Common 1 to Mythical 12). A 7-letter word is then multiplied by 1.5 and gains +100. Words are sorted best first and weighted 1, 0.85, 0.85^2, ...</li>
+        <li>Word rarity comes from real word frequency rank (OpenSubtitles); valid dictionary words missing from the frequency list are Mythical.</li>
+        <li>Overall tier and probability come from a simulation of millions of random rolls under this same formula.</li>
+      </ul>
+    </section>
+  </main>
+</div>
 
 <script src="script.js"></script>
 </body>
